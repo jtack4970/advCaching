@@ -500,72 +500,125 @@ server {
 			</aside>
 		</section>
 
+		<section data-state="lab">
+			<h3>Lab 1.0: WordPress Installation </h3>
+			<ol>
+			 <li>Complete the wordpress install by going to your <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">default.conf</span></pre>, and create <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http://ec2-server:8080</span></pre>
+		    	</li>
+		    	<li>Feel free to take some time and download some images (we love cats), to customize your website a bit</li>
+		</ol>
+		<aside class = "notes">
 
+		</aside>
+	</section>
 
 <section data-state="lab">
-			<h3>Lab 1.1: Reverse Proxy Cache</h3>
+			<h3>Lab 1.1: Reverse Proxy </h3>
 			<ol>
-			 <li>Create a cache directory and a new NGINX conf:
+			 <li>Backup <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">default.conf</span></pre>, and create <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre>
 			 	<pre><code class="linux" data-trim contenteditable>
-		    		$ mkdir -p /data/nginx/cache
+		    		$ cd /etc/nginx/conf.d/
+$ sudo mv default.conf default.conf.bak
 $ sudo vim /etc/nginx/conf.d/proxy.conf
 		    		</code></pre>
 		    	</li>
-			 <li>Define a cache path in the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http</span></pre> context:
+		    <li><pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre> configuration details:
+		    	<pre><code class="apache" data-trim contenteditable>
+   server {
+    listen 80;
+    root /var/wwwl/html;
+    index index.php index.html;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080/;
+        # if localhost doesn't work, try external ip
+    }
+}
+		    		</code></pre>
+		    	</li>
+		</ol>
+		<aside class = "notes">
+
+		</aside>
+	</section>
+
+<section data-state="lab">
+			<h3>Lab 1.2: Reverse Proxy Cache</h3>
+			<ol>
+				<li>Reload and test <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http://ec2-url/</span></pre>
+			 <li>Define a cache path in the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http</span></pre> context of <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre>
 		    	<pre><code class="apache" data-trim contenteditable>
 		    		proxy_cache_path /data/nginx/cache levels=1:2
 keys_zone=wordpress_cache:20m inactive=5m;
 		    		</code></pre>
 		    </li>
-		    <li>In the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> context, set the cache key and proxy headers. Then instrument the cache:
+		    <li>In the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> context, set the cache key and proxy headers:
 		    	<pre><code class="apache" data-trim contenteditable>
 proxy_cache_key $scheme$host$request_uri;
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-add_header X-Cache-Status $upstream_cache_status;
 		    	</code></pre>
 		</ol>
+		<aside class = "notes">
+
+		</aside>
 	</section>
 <section data-state="lab">
-			<h3>Lab 1.2: Reverse Proxy Cache </h3>
+			<h3>Lab 1.3: Instrument and Test </h3>
 			<ol>
-			<li>Create a prefix location with an empty string. Then set the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache</span></pre> and the validation for 10 minutes
+				<li>Use a <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre> to instrument the cache
+					<pre><code class="apache" data-trim contenteditable>
+						map $remote_addr $cache_status {
+    127.0.0.1       $upstream_cache_status;
+    default         "";
+}
+server {
+    ...
+    add_header X-Cache-Status $cache_status;
+}
+					</code></pre></li>
+			<li>Set the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache</span></pre> and the validation for 10 seconds
 				<pre><code class="apache" data-trim contenteditable>
 					location / {
+...
     proxy_cache wordpress_cache;
-    proxy_cache_valid any 10m;
+    proxy_cache_valid any 10s;
 }
 				</code></pre>
 			</li>
-			<li>Proxy all port <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">80</span></pre> traffic to the WordPress site:
-				<pre><code class="apache" data-trim contenteditable>
-					proxy_pass http://127.0.0.1:8080/
-				</code></pre>
-			</li>
-			<li>Save and reload NGINX. Test the cache using:
-				<pre><code class="apache" data-trim contenteditable>
-				$ sudo nginx -s reload
-$ curl -I http://localhost/
-			</code></pre>
+			<li>Save and reload NGINX. Test the cache using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre>
 		</li>
 		    
 		</ol>
 		    <aside class="notes">
 		    	<p>Full Solution:</p>
 		    	<pre><code class="apache" data-trim contenteditable>
-		    		proxy_cache_path /data/nginx/cache levels=1:2 keys_zone=img_cache:20m inactive=5m;
-…
-proxy_cache_key $scheme$host$request_uri;
-proxy_set_header Host $host;
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-...
-location /application1 {
-	proxy_cache img_cache;
-	proxy_cache_valid 10m;
-	proxy_pass http://localhost:90/sampleApp;
+		    		proxy_cache_path /data/nginx/cache levels=1:2 keys_zone=wordpress_cache:20m inactive=5m;
+
+map $remote_addr $cache_status {
+        127.0.0.1       $upstream_cache_status;
+        default         "";
+}
+
+server {
+        listen 80;
+        root /var/wwwl/html;
+        index index.php index.html;
+
+        proxy_cache_key $scheme$host$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        add_header X-Cache-Status $cache_status;
+
+        location / {
+                proxy_cache wordpress_cache;
+                proxy_cache_valid any 10s;
+                proxy_pass http://127.0.0.1:8080/;
+        }
+}
 
 		    	</code></pre>
 		    </aside>
@@ -616,6 +669,53 @@ proxy_cache_key $scheme$host$request_uri;
 </ul>
 
 			</aside>
+		</section>
+
+		<section data-state="lab">
+			<h3>Lab 2.0 Status Page </h3>
+			<ol>
+			<li>Create a new conf called <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">status.conf</span></pre></li>
+			<li><pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">status.conf</span></pre> configuration details
+				<pre><code class="apache" data-trim contenteditable>
+					server {
+    listen 81;
+    root /usr/share/nginx/html;
+
+    location = /status {
+    status;
+    }
+}
+				</code></pre>
+			</li>
+			<li>Add the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">status_zone</span></pre> directive in your <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre>
+				<pre><code class="apache" data-trim contenteditable>
+				server {
+    ...
+    status_zone wordpress_proxy;
+}
+			</code></pre>
+		</li>
+			<li>Save, reload, then visit <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">status.html</span></pre></li>
+				
+		    
+		</ol>
+		    <aside class="notes">
+		    	<p>Full Solution:</p>
+		    	<pre><code class="apache" data-trim contenteditable>
+		    		proxy_cache_path /data/nginx/cache levels=1:2 keys_zone=img_cache:20m inactive=5m;
+…
+proxy_cache_key $scheme$host$request_uri;
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+...
+location /application1 {
+	proxy_cache img_cache;
+	proxy_cache_valid 10m;
+	proxy_pass http://localhost:90/sampleApp;
+
+		    	</code></pre>
+		    </aside>
 		</section>
 
 		<section>
@@ -691,43 +791,25 @@ events {
                     </aside>
                 </section>
 
-		
-<section>
 <section data-state="lab">
 		  <h3>Lab 2: Perform Benchmark Test</h3>
 		  <ol>
-		    <li>Ensure that <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">wrk</span></pre> is installed on the VMs</li>
-		    <li>Comment out all <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache</span></pre> directives in <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">cache.conf</span></pre></li>
-		    <li>Run the following command against your SUT url (ask instructor)</li>
-		  </ol>
+		  	<li>Test Wordpress server directly using Apache Bench:
+		  	<pre><code class="apache" data-trim contenteditable>
+		  		ab -c 10 -t 30 -k http://localhost:8080/;
+		  	</code></pre></li>
+		    <li>Comment out all <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache</span></pre> directives in <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre></li>
+		    <li>Test the NGINX Proxy (without caching)
 		  <pre><code class="apache" data-trim contenteditable>
-		  	wrk -t12 -c400 -d30s &#60;url&#62;
-		  </code></pre>
+		  	ab -c 10 -t 30 -k http://localhost/;
+		  </code></pre></li>
+		  <li>Compare the results, then enable caching and retest
+		  <pre><code class="apache" data-trim contenteditable>
+		  	ab -c 10 -t 30 -k http://localhost/;
+		  </code></pre></li>
+		</ol>
 		  <aside class ="notes">		  
 </aside>
-</section>
-<section data-state="lab">
-		  <h3>Lab 2.5: Cache Wordpress Site</h3>
-		  <ol>
-		    <li>Setup extended <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">status</span></pre> in order to view cache metrics</li>
-		    <pre><code class="apache" data-trim contenteditable>
-		  	server {
-    listen 9090;
-    root /usr/share/nginx/html;
-
-    location = /status {
-        status;
-    }
-}
-		  </code></pre>
-		    <li>Uncomment the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache_path</span></pre> directives</li>
-		    <li>Re-run Benchmark Test</li>
-		    <li>Log the results as your benchmark</li>
-		   	
-		  </ol>
-		  <aside class ="notes">		  
-</aside>
-</section>
 </section>
 		
 		
@@ -810,18 +892,26 @@ events {
 <section data-state="lab">
 		  <h3>Lab 3.: Map Files to Disc</h3>
 		  <ol>
-		  	<li>Map content to disc by running this command</li>
+		  	<li>Map content to disc by using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">echo</span></pre> or a <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre> command</li>
 		  	<pre><code class="linux" data-trim contenteditable>
-		  		$ echo -n "httplocalhost:8080/index.html" | md5sum</code></pre>
+		  		$ echo -n "http://localhost/" | md5sum
+$ curl -I http://localhost/
+		  	</code></pre>
 		    <li>Verify the content is now in the cache directory</li>
 		    <pre><code class="linux" data-trim contenteditable>
-		    	$ cat /var/cache/nginx/&#60;last 2&#62;/&#60;char of&#62;/&#60;md5 string&#62;
+		    	$ cat /data/nginx/cache/&#60;last 3&#62;/&#60;char of&#62;/&#60;md5 string&#62;
+#example
+$ cd /data/nginx/cache/5/46/
+$ ls
+f7fbc9561a3975ce1ecff55583e50465
+
 </code></pre>
 		    <li>Restart NGINX</li>
 		    <pre><code class="linux" data-trim contenteditable>
 		  		$ nginx -s reload</code></pre>
 		  </ol>
 		  <aside class ="notes">
+		  	Run sudo chmod -R 777 if you can't enter the directory
 </aside>
 		</section>
 
@@ -1010,7 +1100,7 @@ server {
 <section data-state="lab">
 			<h3>Lab 4.2: Configure Cache Purge</h3>
 			<ol>
-<li>Open <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">myServers.conf</span></pre> and create the following <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre>:</li>
+<li>Open <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre> and create the following <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre>:</li>
 <pre><code class="linux" data-trim contenteditable>
 map $request_method $purge_method {
 	default  0;
@@ -1028,7 +1118,7 @@ location / {
 <li>Save and reload NGINX</li>
 <li>Send the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre>command using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">PURGE</span></pre></li>
 <pre><code class="linux" data-trim contenteditable>
-$ curl –X PURGE –I -http://localhost:8080/
+$ curl –X PURGE –I -http://localhost/
 </code></pre>
 
 		</ol>
@@ -1043,14 +1133,11 @@ map $request_method $purge_method {
 }
 server {
 …
-proxy_set_header Host $host;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-add_header X-Proxy-Cache $upstream_cache_status;
 location / {
-	proxy_cache upstreamCache;
-	proxy_cache_valid 10m;
+	proxy_cache wordpress_cache;
+	proxy_cache_valid 10s;
 	proxy_cache_purge $purge_method;
-	proxy_pass http://myServers;
+	proxy_pass http://127.0.0.1/;
 
 		    	</code></pre>
 
@@ -1448,7 +1535,7 @@ map $content_type $expires {
 		  <h3>Lab 5.3: Set Cache Params</h3>
 		  <ol>
 		 
-<li>Open <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">cache.conf</span></pre> and edit the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> context: </li>
+<li>Open <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre> and edit the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> context: </li>
 		 <pre><code class="apache" data-trim contenteditable>
 		  		server {
     listen 80;
@@ -1464,7 +1551,7 @@ map $content_type $expires {
 		  	<li>Run the following tests:</li>
 		  	<pre><code class="apache" data-trim contenteditable>
 		  		curl -I http://localhost/test
-curl -I http://localhost/index.html
+curl -I http://localhost/
 curl -I http://localhost/mycontent.html
 		  	</code></pre>
 		  </ol>
@@ -1998,6 +2085,117 @@ $ c
 		  	</ol>
 		  
 		  <aside class ="notes">
+		  	Sharding the Cache:
+
+- Spinup a load balancer and an application instance in GCE
+- Spinup two more load balancer instances (name them cache-servers)
+- SSH into the cache server(s) and backup the lb.conf
+- Create a new config called cache.conf
+- Change the server IPs to map to the internal IP addresses
+- Create directories to save the cached data
+- Repeat same steps for second cache server
+
+- SSH into the load-balancer instance
+- Change the upstream name to cache-pool
+- Change the IPs to map to the cache servers
+- Change the zone directive to “cache-pool”
+- Add hash $scheme$proxy_host$request_uri consistent;
+- Change the status_zone cache-pool
+- Change proxy_pass http://cache-pool/;
+- Reload all instances (load balancer, cache servers)
+
+- Open up the status dashboards for all 3 instances (LB, cache servers)
+- Note that due to the health check, all requests that pass through the load balancer are being severed from the cache.
+- Run a curl request against the external load balancer IP using -I flag e.g. curl -I http://104.196.241.243, you should see the cache status returning a hit, as well as displaying the origin server name “Application-Server”
+
+-Run a wrk test: wrk -t12 -c400 -d30s http://104.196.241.243/
+
+- Dynamic request: for i in `seq 1 100` ; do curl -s -o /dev/null -w "%{http_code}" http://104.196.241.243/\?$i ; done
+
+	- change {http_code} to {X-Cache-Status}
+	- log files
+
+Make sure all 3 servers return X-Cache-Status
+Create a shell script that sends 100 requests and prints number of different values X-Cache-Status
+
+Kill one server (comment out virtual server block or rename .conf)
+run script again
+with consistent hash, 1/3 will be MISS and 2/3 will be HIT
+then re-instate server
+
+then rinse and repeat and get rid of the consistent parameter
+
+run script again: 1/3 will be HIT and 2/3 will be MISS because keys are re-mapped
+
+
+
+hash directive causing session persistence i.e. only one resource is cached on one server, so requests for that resource will go to that server.
+
+
+CODE:
+<pre><code class="apache" data-trim contenteditable>
+#lb.conf
+
+upstream cache-pool {
+        hash $scheme$proxy_host$request_uri consistent;
+        server 10.138.0.4;
+        server 10.138.0.3;
+        zone cache-pool 64k;
+        sticky cookie GCPPersist expires=300;
+}
+
+…
+
+status_zone cache-pool;
+
+location / {
+	
+	proxy_pass http://cache-pool/;
+…
+
+#cache.conf
+
+proxy_cache_path /data/nginx/cache-blue keys_zone=blue_cache:10m levels=1:2 inactive=600s max_size=700m;
+upstream upstream_app_pool {
+        server 10.138.0.2;
+        zone upstream-apps 64k;
+        sticky cookie GCPPersist expires=300;
+}
+server {
+        listen 80 default_server;
+        server_name _;
+        error_page      404     /404.html;
+        error_page      500 502 503 504 /50x.html;
+        error_log       /var/log/nginx/lb-error.log notice;
+        proxy_cache_key $scheme$host$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-Ip $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        location /50x.html {
+                root    /usr/share/nginx/html;
+        }
+        status_zone blue_cache;
+        location / {
+                proxy_cache blue_cache;
+                proxy_cache_valid 5m;
+                proxy_pass http://upstream_app_pool/;
+                add_header X-Cache-Status $upstream_cache_status;
+                health_check;
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+        }
+        location /images {
+                root /usr/share/nginx;
+                }
+        location ~ /favicon.ico {
+                root /usr/share/nginx/images;
+        }
+        location ~ /status-old.html {
+                root /usr/share/nginx/html;
+        }
+}
+</code></pre>
 </aside>
 		</section>
 
@@ -2086,6 +2284,10 @@ upstream origin {
 	<aside class="notes">
 <p>In order for the HA cache to work, you must configure HA so that the secondary server takes the incoming traffic if the primary fails; and the primary takes the traffic back when it subsequently recovers.</p>
 <p>If you're NGINX nodes are on prem you can use the keepalived VRRP solution, if you're using a hosting service like Google Cloud Engine, there is an admin guide on how to set this up yourself. Here is the diagram showing an all active load balancer that uses a GCE frontend load balancer to detect network changes at the NGINX Plus LB tier level. For example if one of these LB instances fails the GCE load balancer will detect the changes and load balance new requests to the other instance.</p>
+
+FULL STEPS:
+<ol>
+
 	</aside>
 </section>
 
@@ -2095,6 +2297,25 @@ upstream origin {
 	<img src="assets/images/gce-lb-instances.png" style="border:0;background:none;">
 </div>
 		  <aside class ="notes">
+
+		  	Tell the class we will take a break so you can set this up (especially the GCE frontend load balancer)
+		  	GCE Shared Cache Lab steps
+
+1. Spin up an app instance group
+2. Spin up a primary cache instance group (1 image)
+3. Spin up a secondary cache instance group (1 image)
+4. SSH into the primary cache instance;
+	- make the secondary server the primary
+	- make the app server the backup
+	- check primary.conf and secondary.conf for examples
+5. Save and reload
+6. Edit the Fronted GCE LB as needed.
+6. Run the following command for testing
+	$ while sleep 1 ; do curl http://104.196.239.36/test/ ; done
+
+6. Mark the secondary server as “down” in the primary conf, notice how the requests still populate in the running command.
+7. stop the primary instance in GCE, the network load balancer will take a minute to detect the change, but after one or two failed connections will begin serving responses from the backup server’s cache fill.
+
 
 </aside>
 

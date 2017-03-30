@@ -1926,13 +1926,15 @@ server {
 		  <pre><code class="apache" data-trim contenteditable>
 		  	$ sudo mkdir -p /tmp/cache1 /tmp/cache2
 		  </code></pre>
-		
+		<li>Setup <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache_path</span></pre> directives for each directory</li>
 		  <li>Use <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">split_clients</span></pre> to spread cache writes</li>
 		  <pre><code class="apache" data-trim contenteditable>
-		  	split_clients $request_uri $cache {
-    		50%         cache1;
-    		*           cache2;
+		  	split_clients $request_uri $cache_dir {
+    		50%         "cache1";
+    		*           "cache2";
 }
+...
+proxy_cache $cache_dir;
 		  </code></pre>
 		
 		  <li>Run the followind dynamic <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre> request</li>
@@ -1940,14 +1942,26 @@ server {
 $ for i in `seq 1 100` ; do curl -s -o /dev/null 
 -w "%{http_code}" http://&#60;external_ip&#62;/\?$i ; done
 		  </code></pre>
-		  <li>Run <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">top</span></pre> and press 'c' to see paths</li>
-		  <pre><code class="apache" data-trim contenteditable>
-$ top -u nginx
-$ c
-		  </code></pre>
+		  <li>Run <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">top</span></pre> or check the status page</li>
 		</ol>
 		  <aside class ="notes">
+Full Solution:
 
+proxy_cache_path /tmp/cache1 levels=1:2 keys_zone=cache1:20m inactive=5m;
+proxy_cache_path /tmp/cache2 levels=1:2 keys_zone=cache2:20m inactive=5m;
+
+plit_clients $request_uri $cache_dir {
+    		50%         "cache1";
+    		*           "cache2";
+ }
+
+ server {
+ 	...
+ 	location /{
+ 	proxy_cache $my_cache;
+ 	proxy_pass http://127.0.0.1:8080/;
+ }
+}
 </aside>
 
 		</section>
@@ -1958,6 +1972,7 @@ $ c
 		<ul>
 			<li>Sharded Cache</li>
 			<li>"Hot" level Cache</li>
+
 		</ul>
 		<p>High Availability:
 		<ul>

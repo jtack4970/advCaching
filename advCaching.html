@@ -503,20 +503,22 @@ server {
 		<section data-state="lab">
 			<h3>Lab 1.0: WordPress DNS Modification </h3>
 			<ol>
-				<li>SSH into your 'backend' EC2 Instance</li>
-			 <li>Download the WordPress command line tools:</li>
-			 	<pre><code class="linux" data-trim contenteditable>
-$ sudo curl -O https://raw.githubusercontent.com/wp-cli
-/builds/gh-pages/phar/wp-cli.phar
-			 	</code></pre>
-		    	<li>Search and replace the old URL with your EC2 'backend' URL</li>
-		    		<pre><code class="linux" data-trim contenteditable>
-$ sudo php wp-cli.phar search-replace 
-'http://ec2-54-205-18-28.compute-1.amazonaws.com' '&#60;BACKEND_URL&#62;' 
---path=/var/www/html --skip-columns=guid --allow-root
-		    		</code></pre>
-		    	<li>Login through the admin portal and customize this website with some images (<pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">admin:admin</span></pre>)</li>
+				<li>SSH into your <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">backend</span></pre> EC2 Instance</li>
+			 <li>Download the WordPress cli (1st command below)</li>
+		    	<li>Replace the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">New-backend-url</span></pre> section and run command to search and replace old URL (2nd command below)</li>
+		    	<li>Add content as needed via WordPress admin portal (login is <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">admin:admin</span></pre>)</li>
 		</ol>
+		<pre><code class="linux" data-trim contenteditable>
+			$ sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+$ sudo php wp-cli.phar search-replace 'http://ec2-54-205-18-28.compute-1.amazonaws.com' '&#60;New-backend-url&#62;' --path=/var/www/html --skip-columns=guid --allow-root
+		    		</code></pre>
+		<aside class = "notes">
+
+		</aside>
+	</section>
+	<section>
+		<h3>Lab 1.0: Successful Replace</h3>
+			<center><img src="assets/images/WordPressDNSreplace.png" style="border:none; background:none; width:35%"></center>
 		<aside class = "notes">
 
 		</aside>
@@ -537,11 +539,11 @@ $ sudo vim /etc/nginx/conf.d/proxy.conf
 		    	<pre><code class="apache" data-trim contenteditable>
    server {
     listen 80;
-    root /var/wwwl/html;
+    root /usr/share/nginx/html;
     index index.php index.html;
 
     location / {
-        proxy_pass http://&#60;BACKEND_URL&#62;/;
+        proxy_pass http://&#60;New-backend-url&#62;/;
     }
 }
 		    		</code></pre>
@@ -555,14 +557,14 @@ $ sudo vim /etc/nginx/conf.d/proxy.conf
 <section data-state="lab">
 			<h3>Lab 1.2: Reverse Proxy Cache</h3>
 			<ol>
-				<li>Reload and test <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http://nginx-ec2-url/</span></pre>
+				<li>Reload and test <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http://Nginx-frotend-url/</span></pre> to ensure the proxy is working</li>
 			 <li>Define a cache path in the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http</span></pre> context of <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre>
 		    	<pre><code class="apache" data-trim contenteditable>
 		    		proxy_cache_path /data/nginx/cache levels=1:2
 keys_zone=wordpress_cache:20m inactive=5m;
 		    		</code></pre>
 		    </li>
-		    <li>In the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> context, set the cache key and proxy headers:
+		    <li>In the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> context, set the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache_key</span></pre> and <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_set_header</span></pre>:
 		    	<pre><code class="apache" data-trim contenteditable>
 proxy_cache_key $scheme$host$request_uri;
 proxy_set_header Host $host;
@@ -577,10 +579,10 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 <section data-state="lab">
 			<h3>Lab 1.3: Instrument and Test </h3>
 			<ol>
-				<li>Use a <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre> to instrument the cache
+				<li>Use a <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre> to instrument the cache on <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">localhost</span></pre>
 					<pre><code class="apache" data-trim contenteditable>
 						map $remote_addr $cache_status {
-    &#60;BACKEND_URL&#62;   $upstream_cache_status;
+    127.0.0.1   $upstream_cache_status;
     default         "";
 }
 server {
@@ -588,16 +590,16 @@ server {
     add_header X-Cache-Status $cache_status;
 }
 					</code></pre></li>
-			<li>Set the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache</span></pre> and the validation for 10 seconds
+			<li>Set the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache</span></pre> and the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache_valid</span></pre> for <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">10m</span></pre>
 				<pre><code class="apache" data-trim contenteditable>
 					location / {
 ...
     proxy_cache wordpress_cache;
-    proxy_cache_valid any 10s;
+    proxy_cache_valid any 10m;
 }
 				</code></pre>
 			</li>
-			<li>Save and reload NGINX. Test the cache using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre>
+			<li>Save and reload NGINX. Test using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl -I http://localhost</span></pre>
 		</li>
 		    
 		</ol>
@@ -804,11 +806,11 @@ events {
 <section data-state="lab">
 		  <h3>Lab 2.1: Load Generator</h3>
 		  <ol>
-		  	<li>Open a shell on your local computer. Don't perform the test on the same machine i.e. your ec2 instance</li>
-		  	<li>Ensure you have Apache Bench (or another load generator) on your computer
+		  	<li>Open a new shell on your local computer. Don't perform the test on the same machine i.e. your ec2 instance</li>
+		  	<li>Ensure you have <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">ab</span></pre> or similar load generator
 		  		<pre><code class="apache" data-trim contenteditable>
 		  			$ ab -V
-This is ApacheBench, Version 2.3 <$Revision: 1757674 $>
+This is ApacheBench, Version 2.3 &#60;$Revision: 1757674 $&#62;
 Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
 Licensed to The Apache Software Foundation, http://www.apache.org/
 </code></pre></li>
@@ -824,18 +826,18 @@ $ brew install homebrew/dupes/ab
 <section data-state="lab">
 		  <h3>Lab 2.2: Perform Benchmark Test</h3>
 		  <ol>
-		  	<li>Test Wordpress server directly using Apache Bench:
+		  	<li>Test WordPress server directly (no NGINX) using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">ab</span></pre>:
 		  	<pre><code class="apache" data-trim contenteditable>
-		  		ab -c 10 -t 30 -k http://localhost:8080/;
+		  		ab -c 10 -t 30 -k http://wordpress-backend-url/;
 		  	</code></pre></li>
 		    <li>Comment out all <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache</span></pre> directives in <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre></li>
 		    <li>Test the NGINX Proxy (without caching)
 		  <pre><code class="apache" data-trim contenteditable>
-		  	ab -c 10 -t 30 -k http://localhost/;
+		  	ab -c 10 -t 30 -k http://frontend-nginx-url/;
 		  </code></pre></li>
-		  <li>Compare the results, then enable caching and retest
+		  <li>Compare the results, then enable caching and re-test
 		  <pre><code class="apache" data-trim contenteditable>
-		  	ab -c 10 -t 30 -k http://localhost/;
+		  	ab -c 10 -t 30 -k http://frontend-nginx-url/;
 		  </code></pre></li>
 		</ol>
 		  <aside class ="notes">		  
@@ -996,10 +998,10 @@ max_size=size;
 		  	<li>Stop Nginx by running:</li>
 		  	<pre><code class="linux" data-trim contenteditable>
 		  		$ nginx -s stop</code></pre>
-		    <li>Use the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">loader_files</span></pre>, <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">loader_threshold</span></pre>, and <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">loader_sleeps</span></pre> to load previous cache data</li>
+		    <li>Use the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">loader_files</span></pre> and <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">loader_threshold</span></pre> to load previous cache data</li>
 		    <pre><code class="linux" data-trim contenteditable>
-		    	proxy_cache_path /data/nginx/cache keys_zone=one:10m 
-    loader_files=100 loader_threshold=200 loader_sleeps=50;
+		    	proxy_cache_path /data/nginx/cache levels=1:2 keys_zone=wordpress_cache:20m 
+	inactive=5m loader_files=100 loader_threshold=200;
 </code></pre>
 		    <li>Restart NGINX</li>
 		    <pre><code class="linux" data-trim contenteditable>
@@ -1142,13 +1144,13 @@ map $request_method $purge_method {
 location / {
 	proxy_cache_purge $purge_method;
 	...
-	proxy_cache wordpress-cache;
+	proxy_cache wordpress_cache;
 }
 	</code></pre>
 <li>Save and reload NGINX</li>
-<li>Send the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre>command using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">PURGE</span></pre></li>
+<li>Send the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre> command using <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">PURGE</span></pre></li>
 <pre><code class="linux" data-trim contenteditable>
-$ curl –X PURGE –I -http://localhost/
+$ curl –X PURGE –I http://localhost/
 </code></pre>
 
 		</ol>
@@ -1472,115 +1474,90 @@ server {
 		<p>By adding the 'public' Cache-Contrl header, we're allowing any system to cache entries. Setting them to private would limit them to being cached by private caches, such as our browser.</p>
 
 	</aside>
-</section>
- 
- <section data-state="lab">
-		  <h3>Lab 5.1: Create Cache Params</h3>
+</section>	
+
+		<section data-state="lab">
+		  <h3>Lab 5.1: Set Cache Params</h3>
 		  <ol>
-		  	<li>Create a new conf file called <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">cache.params.conf</span></pre> and create a <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre> in <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre> called <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$cache_method</span></pre>, that ONLY caches the following <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">GET</span></pre>, <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">HEAD</span></pre>, and <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">POST</span></pre>. All other <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$request_methods</span></pre> set to <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">0</span></pre></li>
-		  	<li>Create another <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre> for the duration of the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$expires</span></pre> header, based on <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$content-type</span></pre> like so:</li>
-		  	<pre><code class="apache" data-trim contenteditable>
-		  		map $content_type 	$expires {
-    default                  off;
-    application/pdf          42d;
-    ~image/                  max;
-    css/javascript           modified +24h;
-    text/html                epoch;  
+		  	<li>Create a separate conf file called <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">cache.params.conf</span></pre></li>
+		  	<li>Transfer all cache details at <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> and <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http</span></pre> contexts</li>
+		  	</ol>
+		 <pre><code class="apache" data-trim contenteditable>
+		  		proxy_cache_path /data/nginx/cache levels=1:2 keys_zone=wordpress_cache:20m inactive=5m loader_files=100 loader_threshold=200;
+
+map $remote_addr $cache_status {
+    127.0.0.1   $upstream_cache_status;
+    default         "";
 }
-		  	
-		  </code></pre>
-		  
-		  <aside class ="notes">
-		  	<p>Solution</p>
-		  	<pre><code class="apache" data-trim contenteditable>
-		  		map $request_method $cache_method {
-	GET     1;
-    HEAD    1;
-    POST    1;
-    default 0;
+
+map $request_method $purge_method {
+    default  0;
+    PURGE    1;
+}
+
+proxy_cache_key $scheme$host$request_uri;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+    add_header X-Cache-Status $cache_status;
+		  	</code></pre>
+		  <aside class="notes">
+
+	</code></pre>
+		  </aside>
+		  </section>
+
+		  <section data-state="lab">
+		  <h3>Lab 5.2: Set Reference Cache Params</h3>
+		  <ol>
+		  	<li>Add one <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">map</span></pre> that bypasses the cache based on <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$status</span></pre> and a custom variable called <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$do_not_cache</span></pre>, and another based on <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$content_type</span></pre> with <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">$expires</span></pre></li>
+		  	<li>Open <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre> and add the following:</li>
+<pre><code class="apache" data-trim contenteditable>
+	proxy_cache_bypass $do_not_cache;
+proxy_cache_methods GET HEAD POST;
+expires $expires;
+</code></pre>
+</ol>
+<aside class="notes">
+	<h4> Full Config</h4>
+	<pre><code class="apache" data-trim contenteditable>
+
+		proxy_cache_path /data/nginx/cache levels=1:2 keys_zone=wordpress_cache:20m inactive=5m loader_files=100 loader_threshold=200;
+
+map $remote_addr $cache_status {
+    127.0.0.1   $upstream_cache_status;
+    default         "";
+}
+
+map $request_method $purge_method {
+    default  0;
+    PURGE    1;
 }
 
 map $content_type $expires {
     default            off;
-    application/pdf    42d;
+    application/pdf    10m;
     ~image/            max;
-    css/javascript     modified +24h;
-    text/html          epoch;  
-}
-		  	</code></pre>
-</aside>
-		</section>
-		
-
-		
-
-
-		<section data-state="lab">
-		  <h3>Lab 5.2: Set Cache Params</h3>
-		  <ol>
-		 
-<li>Open <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre> and edit the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">server</span></pre> context like so:
-		 <pre><code class="apache" data-trim contenteditable>
-		  		server {
-    listen 80;
-    ...
-    proxy_no_cache 404 403 500 503 502;
-    proxy_cache_methods $cache_method;
-    expires $expires;
-    proxy_cache_use_stale updating error http_500 http_503 http_502;
-    proxy_cache_revalidate on;
-    proxy_cache_lock on;
-
-}
-		  	</code></pre></li>
-		  	<li>Save and Reload NGINX</li>
-		  	<li>Run the following tests:
-		  	<pre><code class="apache" data-trim contenteditable>
-		  		curl -I http://localhost/test
-curl -I http://localhost/
-curl -I http://localhost/mycontent.html
-		  	</code></pre></li>
-		  </ol>
-		  <aside class="notes">
-<h4>Full config</h4>
-<pre><code class="apache" data-trim contenteditable>
-	map $request_method $purge_method {
-        default 0;
-        PURGE   1;
+    css/javascript     10m;
+    text/html          epoch;
 }
 
-map $request_method $cache_method {
-    GET     1;
-    HEAD    1;
-    POST    1;
+map $status $do_not_cache {
+    400     1;
+    403     1;
+    500     1;
+    502     1;
+    504     1;
     default 0;
 }
 
-map $content_type $expires {
-    default                  off;
-    application/pdf          42d;
-    ~image/                  max;
-    css/javascript           modified +24h;
-    text/html                epoch;  
-}
+    proxy_cache_key $scheme$host$request_uri;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
-server {
-        listen 80;
-        root /var/wwwl/html;
-        index index.php index.html;
-        status_zone wordpress_proxy:
-
-        proxy_cache_key $scheme$host$request_uri;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-        proxy_no_cache 404 403 500 503 502;
-        proxy_cache_methods $cache_method;
-        expires $expires;
-        proxy_cache_use_stale updating error http_500 http_503 http_502;
-        proxy_cache_revalidate on;
-        proxy_cache_lock on;
+    add_header X-Cache-Status $cache_status;
 	</code></pre>
 		  </aside>
 		  </section>
@@ -1673,8 +1650,10 @@ upstream wordpress-upstreams {
 <li>Open <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy.conf</span></pre> and change the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache_valid</span></pre> directive value to <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">1s</span></pre></li>
 <li>Save and reload NGINX, and re-run your <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">ab</span></pre> test
 	<pre><code class="apache" data-trim contenteditable>
+		ab -c 10 -t 30 -k http://frontend-nginx-url/;
 	</code></pre>
-	<li>There should be increase in connections received, but also notice the CPU spike every so often?</li>
+	<li>Take a look at the status dashboard</li>
+	<li>There should be increase in connections received, but also notice the spike in 3xx codes every so often?</li>
 </ol>
 </section>
 <section data-state="lab">
@@ -1685,16 +1664,14 @@ upstream wordpress-upstreams {
 		  		server {
     listen 80;
     ...
-    proxy_no_cache 404 403 500 503 502;
-    proxy_cache_methods $cache_method;
+    proxy_cache_bypass 404 403 500 503 502;
     expires $expires;
-    proxy_cache_use_stale updating error http_500 http_503 http_502;
+	...
     proxy_cache_revalidate on;
     proxy_cache_lock on;
 
 }
 		  	</code></pre></li>
-		  	<li><pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">include</span></pre> the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">cache.params.conf</span></pre> in the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">http</span></pre> context</li>
 		  	<li>Save and Reload NGINX, then re-run the <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">ab</span></pre> test. Notice a difference?</li>
 		  </ol>
 		  <aside class="notes">
@@ -1731,7 +1708,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
-        proxy_no_cache 404 403 500 503 502;
+        proxy_cache_bypass 404 403 500 503 502;
         proxy_cache_methods $cache_method;
         expires $expires;
         proxy_cache_use_stale updating error http_500 http_503 http_502;
@@ -2022,11 +1999,11 @@ server {
 
 
 <section data-state="lab">
-		  <h3>Lab 6: Split Across Directories</h3>
+		  <h3>Lab 7.1: Split Across Directories</h3>
 		  <ol>
 		  <li>Create two cache directories to emulate hard disks</li>
 		  <pre><code class="apache" data-trim contenteditable>
-		  	$ sudo mkdir -p /tmp/cache1 /tmp/cache2
+		  	$ sudo mkdir -p /data/nginx/cache1 /data/nginx/cache2
 		  </code></pre>
 		<li>Setup <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">proxy_cache_path</span></pre> directives for each directory</li>
 		  <li>Use <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">split_clients</span></pre> to spread cache writes</li>
@@ -2041,8 +2018,7 @@ proxy_cache $cache_dir;
 		
 		  <li>Run the following dynamic <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">curl</span></pre> request</li>
 		  <pre><code class="apache" data-trim contenteditable>
-$ for i in `seq 1 100` ; do curl -s -o /dev/null 
--w "%{http_code}" http://&#60;external_ip&#62;/\?$i ; done
+$ for i in `seq 1 100` ; do curl -s -o /dev/null -w "%{http_code}" http://&#60;ec2-hostname&#62;/\?$i ; done
 		  </code></pre>
 		  <li>Run <pre style="display:inline; color:rgb(240,168,40);"><span style="font-size: 30px;">top</span></pre> or check the status page</li>
 		</ol>

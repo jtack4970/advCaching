@@ -8,5 +8,6 @@ The lab solutions cover the material for all of the configurations (including de
 
 They are located in the **conf_examples** folder. There are also other configurations examples that you may find useful, as well as a shell script that will rotate your logs via a cron job.
 
-#Thank You!
+###Thank You!
+
 Thank you for taking the course and don't forget to take the survey at the end of the slide deck!

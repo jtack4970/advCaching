@@ -10,6 +10,3 @@ They are located in the **conf_examples** folder. There are also other configura
 
 #Thank You!
 Thank you for taking the course and don't forget to take the survey at the end of the slide deck!
-
-Or the link is below:
-#### [NGINX Advanced Caching Survey] (http://www.surveygizmo.com/s3/3449621/NGINX-Plus-Adv-Caching-Survey)
